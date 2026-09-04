@@ -169,6 +169,32 @@ describe("private portal and voucher routes", () => {
     expect(result.caveat).toContain("capped at 38,000 points");
   });
 
+  it("calculates HSBC TravelOne direct travel, ordinary hotel spend, and exclusions", () => {
+    const travelOne = { cardKey: "hsbc-travelone", name: "TravelOne Credit Card", issuer: "HSBC" };
+    const redemption = [profile("hsbc-travelone", "Reward Points")];
+    const travelRule = rule({
+      cardKey: travelOne.cardKey, ruleKey: "travelone-direct-flight", purchaseTypes: ["flight"],
+      outcome: "points", rate: undefined, spendBlock: 50, earnPerBlock: 2, rewardCurrency: "Reward Points",
+    });
+    const baseRule = rule({
+      cardKey: travelOne.cardKey, ruleKey: "travelone-direct-hotel", purchaseTypes: ["hotel"],
+      outcome: "points", rate: undefined, spendBlock: 50, earnPerBlock: 1, rewardCurrency: "Reward Points",
+    });
+    const excludedRule = rule({
+      cardKey: travelOne.cardKey, ruleKey: "travelone-jewellery-excluded", priority: 20,
+      purchaseTypes: ["jewellery"], outcome: "excluded", rate: undefined, rewardCurrency: "Reward Points",
+    });
+
+    const [flight] = calculateRecommendations([travelOne], [travelRule], [], { ...input, amount: 18000, merchant: "Airline", purchaseType: "flight" }, {}, redemption);
+    const [hotel] = calculateRecommendations([travelOne], [baseRule], [], { ...input, amount: 50000, merchant: "Hotel", purchaseType: "hotel" }, {}, redemption);
+    const [jewellery] = calculateRecommendations([travelOne], [excludedRule], [], { ...input, amount: 60000, merchant: "Jeweller", purchaseType: "jewellery" }, {}, redemption);
+
+    expect(flight.pointsLabel).toBe("720 Reward Points");
+    expect(hotel.pointsLabel).toBe("1,000 Reward Points");
+    expect(jewellery.pointsLabel).toBe("No rewards");
+    expect(jewellery.maxValue).toBe(0);
+  });
+
   it("discloses portal fees without subtracting them and keeps reviewed routes unconditional", () => {
     const flight = route({ routeKey: "flight", merchantKey: undefined, routeType: "portal", purchaseType: "flight", multiplier: 6, domesticFeePerPassengerLeg: 300 });
     const result = calculateRecommendations([cards[0]], [rule({ purchaseTypes: ["flight"] })], [flight], { ...input, amount: 1800, merchant: "Airline", purchaseType: "flight" }, {}, profiles)
