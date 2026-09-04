@@ -9,6 +9,7 @@
  */
 
 import type * as accounts from "../accounts.js";
+import type * as admin from "../admin.js";
 import type * as cardRequests from "../cardRequests.js";
 import type * as privateRuleAdmin from "../privateRuleAdmin.js";
 import type * as recommendationEngine from "../recommendationEngine.js";
@@ -23,6 +24,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accounts: typeof accounts;
+  admin: typeof admin;
   cardRequests: typeof cardRequests;
   privateRuleAdmin: typeof privateRuleAdmin;
   recommendationEngine: typeof recommendationEngine;
