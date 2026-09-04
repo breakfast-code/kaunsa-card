@@ -98,6 +98,21 @@ describe("private recommendation engine", () => {
     expect(result.maxValue).toBe(0);
     expect(result.caveat).toContain("redemption value has not been reviewed");
   });
+
+  it("fails closed for HSBC TravelOne until its earning rules are reviewed", () => {
+    const travelOne = { cardKey: "hsbc-travelone", name: "TravelOne Credit Card", issuer: "HSBC" };
+    const [result] = calculateRecommendations(
+      [travelOne],
+      [],
+      [],
+      { amount: 50000, merchant: "Evolve Back", purchaseType: "hotel", paymentMode: "online", now: 10 },
+    );
+    expect(result.cardKey).toBe("hsbc-travelone");
+    expect(result.pointsLabel).toBe("Not estimated");
+    expect(result.maxValue).toBe(0);
+    expect(result.matchedRule).toBe("Coverage not verified");
+    expect(result.conditional).toBe(true);
+  });
 });
 
 describe("private portal and voucher routes", () => {
