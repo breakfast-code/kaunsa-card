@@ -169,6 +169,23 @@ describe("private portal and voucher routes", () => {
     expect(result.caveat).toContain("capped at 38,000 points");
   });
 
+  it("keeps HSBC TravelOne portal value disabled without an approved redemption profile", () => {
+    const travelOne = { cardKey: "hsbc-travelone", name: "TravelOne Credit Card", issuer: "HSBC" };
+    const hotelPortal = route({
+      cardKey: travelOne.cardKey, routeKey: "travelone-travel-with-points-hotel", merchantKey: undefined,
+      platformName: "HSBC Travel with Points", routeType: "portal", purchaseType: "hotel",
+      baseSpend: 100, baseEarn: 4, multiplier: 6, rewardCurrency: "Reward Points",
+      capValue: 18000, capUnit: "accelerated points", capAppliesTo: "accelerated-only",
+    });
+    const results = calculateRecommendations(
+      [travelOne],
+      [],
+      [hotelPortal],
+      { ...input, amount: 50000, merchant: "Hotel", purchaseType: "hotel" },
+    );
+    expect(results.some((recommendation) => recommendation.kind === "portal")).toBe(false);
+  });
+
   it("calculates HSBC TravelOne direct travel, ordinary hotel spend, and exclusions", () => {
     const travelOne = { cardKey: "hsbc-travelone", name: "TravelOne Credit Card", issuer: "HSBC" };
     const redemption = [profile("hsbc-travelone", "Reward Points")];
