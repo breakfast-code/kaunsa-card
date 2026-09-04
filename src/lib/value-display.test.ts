@@ -7,8 +7,13 @@ describe("estimatedValueLabel", () => {
       .toBe("₹100 at the stated redemption");
   });
 
-  it("shows the full range when redemption values differ", () => {
+  it("shows the highest supported value before the fallback", () => {
     expect(estimatedValueLabel({ minValue: 360, maxValue: 1440, pointsLabel: "1,440 Reward Points" }))
-      .toBe("₹360–₹1,440");
+      .toBe("₹1,440 best supported · ₹360 fallback");
+  });
+
+  it("names the redemption route used for the displayed value", () => {
+    expect(estimatedValueLabel({ minValue: 2500, maxValue: 5000, pointsLabel: "2,500 EDGE Miles", bestValueLabel: "eligible partner transfer" }))
+      .toBe("₹5,000 via eligible partner transfer");
   });
 });

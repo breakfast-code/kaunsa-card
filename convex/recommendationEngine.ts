@@ -1,3 +1,5 @@
+import { valueRewards, type RedemptionProfile } from "./redemptionEngine";
+
 export type PrivateDirectRule = {
   ruleKey: string;
   cardKey: string;
@@ -55,6 +57,13 @@ export type DirectRecommendation = {
   pointsLabel: string;
   minValue: number;
   maxValue: number;
+  bestValueLabel?: string;
+  bestValueCalculation?: string;
+  bestValueSourceUrl?: string;
+  fallbackValue?: number;
+  fallbackValueLabel?: string;
+  fallbackValueCalculation?: string;
+  fallbackValueSourceUrl?: string;
   matchedRule: string;
   caveat?: string;
   sourceUrl?: string;
@@ -113,7 +122,30 @@ const matches = (rule: PrivateDirectRule, input: RecommendationInput) => {
 
 const money = (value: number) => `₹${Math.round(value).toLocaleString("en-IN")}`;
 
-export function calculateDirectRecommendations(cards: PublicCard[], rules: PrivateDirectRule[], input: RecommendationInput): DirectRecommendation[] {
+const profileFor = (profiles: RedemptionProfile[], cardKey: string, rewardCurrency: string) => profiles
+  .filter((profile) => profile.cardKey === cardKey && profile.rewardCurrency === rewardCurrency && profile.status === "approved")
+  .sort((left, right) => right.version - left.version)[0];
+
+const valuationFields = (earned: number, profile: RedemptionProfile, now: number) => {
+  const valuation = valueRewards(earned, profile, now);
+  const describe = (option: typeof valuation.best) =>
+    `${earned.toLocaleString("en-IN")} × ${option.unitsPerReward.toLocaleString("en-IN")} ${option.label} × ${money(option.rupeesPerUnit)} each = ${money(option.rupeeValue)}`;
+  return {
+    minValue: valuation.fallback?.rupeeValue ?? valuation.best.rupeeValue,
+    maxValue: valuation.best.rupeeValue,
+    bestValueLabel: valuation.best.label,
+    bestValueCalculation: describe(valuation.best),
+    bestValueSourceUrl: valuation.best.valueSourceUrl,
+    fallbackValue: valuation.fallback?.rupeeValue,
+    fallbackValueLabel: valuation.fallback?.label,
+    fallbackValueCalculation: valuation.fallback ? describe(valuation.fallback) : undefined,
+    fallbackValueSourceUrl: valuation.fallback?.valueSourceUrl,
+    valuationConditional: valuation.best.valueType === "estimated",
+    valuationAssumption: valuation.best.assumption,
+  };
+};
+
+export function calculateDirectRecommendations(cards: PublicCard[], rules: PrivateDirectRule[], input: RecommendationInput, redemptionProfiles: RedemptionProfile[] = []): DirectRecommendation[] {
   const results = cards.map((card): DirectRecommendation => {
     const rule = rules
       .filter((candidate) => candidate.cardKey === card.cardKey && matches(candidate, input))
@@ -163,8 +195,21 @@ export function calculateDirectRecommendations(cards: PublicCard[], rules: Priva
     } else if (rule.outcome === "points" && rule.spendBlock && rule.earnPerBlock !== undefined) {
       earned = Math.floor(input.amount / rule.spendBlock) * rule.earnPerBlock;
     }
-    const minValue = rule.outcome === "points" ? earned * rule.pointValueMin : earned;
-    const maxValue = rule.outcome === "points" ? earned * rule.pointValueMax : earned;
+    const profile = rule.outcome === "points" ? profileFor(redemptionProfiles, card.cardKey, rule.rewardCurrency) : undefined;
+    if (rule.outcome === "points" && !profile) return {
+      ...base,
+      pointsLabel: `${earned.toLocaleString("en-IN")} ${rule.rewardCurrency}`,
+      minValue: 0,
+      maxValue: 0,
+      matchedRule,
+      caveat: "Rewards were calculated, but their redemption value has not been reviewed yet.",
+      sourceUrl: rule.sourceUrl,
+      checkedAt: rule.checkedAt,
+      conditional: true,
+    };
+    const valuation = profile ? valuationFields(earned, profile, input.now) : undefined;
+    const minValue = valuation?.minValue ?? earned;
+    const maxValue = valuation?.maxValue ?? earned;
     const cappedMin = rule.valueCap === undefined ? minValue : Math.min(minValue, rule.valueCap);
     const cappedMax = rule.valueCap === undefined ? maxValue : Math.min(maxValue, rule.valueCap);
     const pointsLabel = rule.outcome === "excluded"
@@ -177,18 +222,25 @@ export function calculateDirectRecommendations(cards: PublicCard[], rules: Priva
       pointsLabel,
       minValue: cappedMin,
       maxValue: cappedMax,
+      bestValueLabel: valuation?.bestValueLabel,
+      bestValueCalculation: valuation?.bestValueCalculation,
+      bestValueSourceUrl: valuation?.bestValueSourceUrl,
+      fallbackValue: valuation?.fallbackValue,
+      fallbackValueLabel: valuation?.fallbackValueLabel,
+      fallbackValueCalculation: valuation?.fallbackValueCalculation,
+      fallbackValueSourceUrl: valuation?.fallbackValueSourceUrl,
       matchedRule,
-      caveat,
+      caveat: [caveat, valuation?.valuationAssumption].filter(Boolean).join(" ") || undefined,
       sourceUrl: rule.sourceUrl,
       checkedAt: rule.checkedAt,
-      conditional: rule.status !== "approved" || usageConditional,
+      conditional: rule.status !== "approved" || usageConditional || Boolean(valuation?.valuationConditional),
     };
   });
-  return results.sort((left, right) => right.minValue - left.minValue || right.maxValue - left.maxValue || Number(left.conditional) - Number(right.conditional));
+  return results.sort((left, right) => right.maxValue - left.maxValue || Number(left.conditional) - Number(right.conditional) || right.minValue - left.minValue);
 }
 
 const compareRecommendations = (left: DirectRecommendation | RoutedRecommendation, right: DirectRecommendation | RoutedRecommendation) =>
-  right.minValue - left.minValue || right.maxValue - left.maxValue || Number(left.conditional) - Number(right.conditional);
+  right.maxValue - left.maxValue || Number(left.conditional) - Number(right.conditional) || right.minValue - left.minValue;
 
 const routeMatches = (rule: PrivateRouteRule, input: RecommendationInput) => {
   if (rule.purchaseType !== input.purchaseType) return false;
@@ -204,9 +256,10 @@ export function calculateRecommendations(
   routeRules: PrivateRouteRule[],
   input: RecommendationInput,
   usage: RouteUsage = {},
+  redemptionProfiles: RedemptionProfile[] = [],
 ): Array<DirectRecommendation | RoutedRecommendation> {
   const contextualInput = { ...input, contextualSpendThisMonth: usage.atlasTravelSpendThisMonth };
-  const direct = calculateDirectRecommendations(cards, directRules, contextualInput).map((recommendation) => {
+  const direct = calculateDirectRecommendations(cards, directRules, contextualInput, redemptionProfiles).map((recommendation) => {
     if (recommendation.cardKey !== "sbi-cashback" || recommendation.maxValue <= 0) return recommendation;
     const earnedThisCycle = usage.sbiCashbackEarnedThisCycle ?? 0;
     const remaining = Math.max(0, 2000 - earnedThisCycle);
@@ -235,10 +288,13 @@ export function calculateRecommendations(
         ? Math.min(rawEarned, rule.capValue)
         : rawEarned;
       const remainderRecommendation = remainder > 0
-        ? calculateDirectRecommendations([card], directRules, { ...contextualInput, amount: remainder })[0]
+        ? calculateDirectRecommendations([card], directRules, { ...contextualInput, amount: remainder }, redemptionProfiles)[0]
         : undefined;
-      const grossMin = earned * rule.pointValueMin + (remainderRecommendation?.minValue ?? 0);
-      const grossMax = earned * rule.pointValueMax + (remainderRecommendation?.maxValue ?? 0);
+      const profile = profileFor(redemptionProfiles, card.cardKey, rule.rewardCurrency);
+      if (!profile) return null;
+      const valuation = valuationFields(earned, profile, input.now);
+      const grossMin = valuation.minValue + (remainderRecommendation?.minValue ?? 0);
+      const grossMax = valuation.maxValue + (remainderRecommendation?.maxValue ?? 0);
       const split = remainder > 0
         ? ` Buy ${money(eligibleAmount)} as a voucher, then pay the remaining ${money(remainder)} directly with ${card.name}.`
         : "";
@@ -271,11 +327,18 @@ export function calculateRecommendations(
         pointsLabel: `${earned.toLocaleString("en-IN")} ${rule.rewardCurrency}${remainderRecommendation ? " plus direct rewards on the remainder" : ""}`,
         minValue: grossMin,
         maxValue: grossMax,
+        bestValueLabel: valuation.bestValueLabel,
+        bestValueCalculation: valuation.bestValueCalculation,
+        bestValueSourceUrl: valuation.bestValueSourceUrl,
+        fallbackValue: valuation.fallbackValue,
+        fallbackValueLabel: valuation.fallbackValueLabel,
+        fallbackValueCalculation: valuation.fallbackValueCalculation,
+        fallbackValueSourceUrl: valuation.fallbackValueSourceUrl,
         matchedRule: `${rule.multiplier}X through ${rule.platformName} on ${money(eligibleAmount)}`,
-        caveat: `${rule.evidence}${feeCaveat}${allowanceCaveat}${pointsCapCaveat}`,
+        caveat: `${rule.evidence}${feeCaveat}${allowanceCaveat}${pointsCapCaveat}${valuation.valuationAssumption ? ` ${valuation.valuationAssumption}` : ""}`,
         sourceUrl: rule.sourceUrl,
         checkedAt: rule.checkedAt,
-        conditional: false,
+        conditional: valuation.valuationConditional,
       };
     })
     .filter((route): route is RoutedRecommendation => route !== null));

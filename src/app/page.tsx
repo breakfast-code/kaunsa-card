@@ -29,6 +29,13 @@ type Recommendation = {
   pointsLabel: string;
   minValue: number;
   maxValue: number;
+  bestValueLabel?: string;
+  bestValueCalculation?: string;
+  bestValueSourceUrl?: string;
+  fallbackValue?: number;
+  fallbackValueLabel?: string;
+  fallbackValueCalculation?: string;
+  fallbackValueSourceUrl?: string;
   matchedRule: string;
   calculation?: string;
   caveat?: string;
@@ -327,7 +334,7 @@ export default function Home() {
           {!activeIds.length && <div className="flow-warning">No cards are active. <button onClick={() => goTo("wallet")}>Activate a card</button></div>}
           {recommendationStatus === "error" && <div className="flow-warning" role="alert"><strong>Verified recommendations are unavailable.</strong> We will not guess without the reviewed data. <button onClick={() => void requestRecommendations()}>Try again</button></div>}
           <button className="primary full" disabled={!merchant.trim() || !Number(amount) || !activeIds.length || recommendationStatus === "loading"} onClick={() => void requestRecommendations()}>{recommendationStatus === "loading" ? "Checking verified rules…" : "Find the best way to pay"} <span>→</span></button>
-          <p className="fine">Ranked by the conservative end of each published redemption range. Caps, exclusions and assumptions stay visible.</p>
+          <p className="fine">Ranked by the highest supported redemption value. The redemption route, fallback, caps and assumptions stay visible.</p>
         </section>
       )}
 
@@ -340,11 +347,11 @@ export default function Home() {
           <h2 className="winner-label">{results[0].conditional ? "BEST AVAILABLE ESTIMATE" : "BEST WAY TO PAY"}</h2>
           {!matchedMerchant && <p className="merchant-honesty">Using general card rates for this merchant.</p>}
           <div className="route-callout"><small>{results[0].conditional ? "ESTIMATED" : results[0].kind === "direct" ? "PAY DIRECTLY" : results[0].kind === "voucher" ? "BUY A VOUCHER FIRST" : "USE THE BANK WEBSITE"} · {results[0].effort ?? "No extra steps"}</small><strong>{results[0].title}</strong><span>{results[0].action}</span><div className={`winning-card ${cardFor(results[0]).tone}`}><span>{results[0].issuer}</span><b>{results[0].cardName}</b></div></div>
-          {(() => { const direct = results.find((route) => route.kind === "direct" && route.cardKey === results[0].cardKey); const gain = direct && results[0].kind !== "direct" ? results[0].minValue - direct.minValue : 0; return gain > 0 && direct ? <div className="winner-comparison"><small>WHY THIS IS BETTER</small><strong>At least {money(gain)} more value</strong><div><span>Pay directly with {direct.cardName}<b>{estimatedValueLabel(direct)}</b></span><span className="better">Follow this recommendation<b>{estimatedValueLabel(results[0])}</b></span></div></div> : null; })()}
+          {(() => { const direct = results.find((route) => route.kind === "direct" && route.cardKey === results[0].cardKey); const gain = direct && results[0].kind !== "direct" ? results[0].maxValue - direct.maxValue : 0; return gain > 0 && direct ? <div className="winner-comparison"><small>WHY THIS IS BETTER</small><strong>Up to {money(gain)} more supported value</strong><div><span>Pay directly with {direct.cardName}<b>{estimatedValueLabel(direct)}</b></span><span className="better">Follow this recommendation<b>{estimatedValueLabel(results[0])}</b></span></div></div> : null; })()}
           <div className="points-first"><strong>{results[0].pointsLabel}</strong><span>{estimatedValueLabel(results[0])} estimated value</span></div>
           <ResultMath result={results[0]} />
           {results.length > 1 && <div className="alternatives"><div className="alternatives-title">OTHER WAYS TO PAY</div>{results.slice(1, 4).map((route) => <div className="route-option" key={route.id}><div><small>{route.conditional ? "ESTIMATED" : route.kind.toUpperCase()} · {route.effort ?? "No extra steps"}</small><strong>{route.title}</strong><span>{route.cardName} · {route.pointsLabel}</span>{route.conditional && route.caveat && <span className="route-caveat">{route.caveat}</span>}{route.sourceUrl && <a href={route.sourceUrl} target="_blank" rel="noreferrer">Terms · checked {checkedDate(route.checkedAt)} ↗</a>}</div><b>{estimatedValueLabel(route)}</b></div>)}</div>}
-          <div className="saved honest">Ranked using the cash value of {money(results[0].minValue)}, not the best-case redemption value.</div>
+          <div className="saved honest">Ranked using the highest supported value of {money(results[0].maxValue)}. Availability and assumptions are shown above.</div>
           <div className="result-disclaimer"><strong>Estimate, not a bank confirmation.</strong><span>Calculated from public information checked on the dates shown. Actual rewards can differ because of the merchant category code, eligibility, caps and posting rules. The bank’s current terms and posted rewards prevail.</span></div>
           {!isSignedIn ? <div className="account-prompt"><div><strong>Save your wallet across devices</strong><span>Optional. Sign in only after seeing the recommendation.</span></div><SignInButton mode="modal"><button className="primary">Continue with Google</button></SignInButton></div> : <div className={`account-prompt compact ${accountStatus === "error" ? "account-error" : ""}`}><div><strong>{accountStatus === "error" ? "Could not save your account yet" : accountStatus === "saved" ? "Wallet saved to your account" : "Saving your wallet…"}</strong><span>{accountStatus === "error" ? "Your local wallet is safe. Try again after the next recommendation." : user?.primaryEmailAddress?.emailAddress}</span></div><UserButton /></div>}
           <div className={`feedback-strip ${feedbackVerdict ? "open" : ""}`}><div className="feedback-question"><span>Was this useful?</span>{feedbackStatus === "sent" ? <strong>Thanks for helping us improve.</strong> : <div className="feedback-options">{(["useful", "unsure", "wrong"] as const).map((verdict) => <button className={feedbackVerdict === verdict ? "selected" : ""} key={verdict} onClick={() => { setFeedbackVerdict(verdict); setFeedbackStatus(""); }}>{verdict === "useful" ? "Yes" : verdict === "unsure" ? "Not sure" : "No"}</button>)}</div>}</div>{feedbackVerdict && feedbackStatus !== "sent" && <div className="feedback-followup"><p>Help us check this answer.</p><div><input maxLength={80} value={feedbackName} onChange={(event) => setFeedbackName(event.target.value)} placeholder="First name" aria-label="Feedback first name" /><input maxLength={500} value={feedbackNote} onChange={(event) => setFeedbackNote(event.target.value)} placeholder="What looked wrong or unclear? (optional)" aria-label="Feedback note" /></div><button className="secondary" disabled={feedbackName.trim().length < 2 || feedbackStatus === "sending"} onClick={async () => { setFeedbackStatus("sending"); try { await submitFeedback({ firstName: feedbackName, merchant, amount: Number(amount), purchaseType: type, paymentMode: mode, winningRouteId: results[0].id, winningRouteTitle: results[0].title, winningCard: results[0].cardName, verdict: feedbackVerdict, note: feedbackNote || undefined }); setFeedbackStatus("sent"); } catch { setFeedbackStatus("error"); } }}>{feedbackStatus === "sending" ? "Sending…" : "Send feedback"}</button>{feedbackStatus === "error" && <small>Could not save that. Please try again.</small>}</div>}</div>
@@ -378,7 +385,7 @@ function checkedDate(value?: number) {
 }
 
 function ResultMath({ result }: { result: Recommendation }) {
-  return <div className="math"><strong>Why this route wins</strong><p>{result.matchedRule}</p>{result.calculation && <small>{result.calculation}</small>}{result.caveat && <small>{result.caveat}</small>}{result.sourceUrl && <a href={result.sourceUrl} target="_blank" rel="noreferrer">Official terms · checked {checkedDate(result.checkedAt)} ↗</a>}</div>;
+  return <div className="math"><strong>How we calculated it</strong><p>{result.matchedRule}</p>{result.bestValueCalculation && <small>{result.bestValueCalculation}</small>}{result.fallbackValue !== undefined && result.fallbackValueLabel && <small>Fallback: {money(result.fallbackValue)} via {result.fallbackValueLabel}{result.fallbackValueCalculation ? ` — ${result.fallbackValueCalculation}` : ""}</small>}{result.calculation && <small>{result.calculation}</small>}{result.caveat && <small>{result.caveat}</small>}{result.sourceUrl && <a href={result.sourceUrl} target="_blank" rel="noreferrer">Earning terms · checked {checkedDate(result.checkedAt)} ↗</a>}{result.bestValueSourceUrl && <a href={result.bestValueSourceUrl} target="_blank" rel="noreferrer">Redemption value source ↗</a>}</div>;
 }
 
 function CardRequest({ onClose }: { onClose: () => void }) {

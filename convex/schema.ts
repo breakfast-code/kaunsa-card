@@ -71,6 +71,29 @@ export default defineSchema({
     .index("by_card", ["cardKey"])
     .index("by_card_and_status", ["cardKey", "status"])
     .index("by_ruleKey_version", ["ruleKey", "version"]),
+  redemptionProfiles: defineTable({
+    profileKey: v.string(),
+    cardKey: v.string(),
+    rewardCurrency: v.string(),
+    version: v.number(),
+    status: v.union(v.literal("draft"), v.literal("approved"), v.literal("retired")),
+    checkedAt: v.number(),
+  }).index("by_cardKey_and_rewardCurrency", ["cardKey", "rewardCurrency"]).index("by_profileKey_and_version", ["profileKey", "version"]),
+  redemptionOptions: defineTable({
+    profileId: v.id("redemptionProfiles"),
+    optionKey: v.string(),
+    label: v.string(),
+    unitsPerReward: v.number(),
+    rupeesPerUnit: v.number(),
+    valueType: v.union(v.literal("guaranteed"), v.literal("estimated")),
+    assumption: v.optional(v.string()),
+    rulesSourceUrl: v.string(),
+    valueSourceUrl: v.string(),
+    valueSourceKind: v.union(v.literal("official"), v.literal("expert")),
+    checkedAt: v.number(),
+    validFrom: v.optional(v.number()),
+    validUntil: v.optional(v.number()),
+  }).index("by_profileId", ["profileId"]),
   paymentPlatforms: defineTable({
     platformKey: v.string(),
     name: v.string(),

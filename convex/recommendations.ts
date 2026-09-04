@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { calculateRecommendations, type PrivateDirectRule, type PrivateRouteRule } from "./recommendationEngine";
+import type { RedemptionProfile } from "./redemptionEngine";
 
 const purchaseType = v.union(
   v.literal("shopping"), v.literal("flight"), v.literal("hotel"), v.literal("dining"),
@@ -20,6 +21,13 @@ const recommendation = v.object({
   pointsLabel: v.string(),
   minValue: v.number(),
   maxValue: v.number(),
+  bestValueLabel: v.optional(v.string()),
+  bestValueCalculation: v.optional(v.string()),
+  bestValueSourceUrl: v.optional(v.string()),
+  fallbackValue: v.optional(v.number()),
+  fallbackValueLabel: v.optional(v.string()),
+  fallbackValueCalculation: v.optional(v.string()),
+  fallbackValueSourceUrl: v.optional(v.string()),
   matchedRule: v.string(),
   caveat: v.optional(v.string()),
   sourceUrl: v.optional(v.string()),
@@ -59,6 +67,33 @@ export const get = query({
     }));
     const ruleGroups = await Promise.all(cardIds.map((cardKey) => ctx.db.query("directRewardRules").withIndex("by_card", (q) => q.eq("cardKey", cardKey)).collect()));
     const routeGroups = await Promise.all(cards.filter((card) => card !== null).map((card) => ctx.db.query("routeRules").withIndex("by_card", (q) => q.eq("cardId", card._id)).collect()));
+    const redemptionProfileGroups = await Promise.all(cardIds.map((cardKey) =>
+      ctx.db.query("redemptionProfiles").withIndex("by_cardKey_and_rewardCurrency", (q) => q.eq("cardKey", cardKey)).take(20),
+    ));
+    const approvedProfiles = redemptionProfileGroups.flat().filter((profile) => profile.status === "approved");
+    const redemptionProfiles = await Promise.all(approvedProfiles.map(async (profile): Promise<RedemptionProfile> => {
+      const options = await ctx.db.query("redemptionOptions").withIndex("by_profileId", (q) => q.eq("profileId", profile._id)).take(20);
+      return {
+        cardKey: profile.cardKey,
+        rewardCurrency: profile.rewardCurrency,
+        version: profile.version,
+        status: profile.status,
+        options: options.map((option) => ({
+          optionKey: option.optionKey,
+          label: option.label,
+          unitsPerReward: option.unitsPerReward,
+          rupeesPerUnit: option.rupeesPerUnit,
+          valueType: option.valueType,
+          assumption: option.assumption,
+          rulesSourceUrl: option.rulesSourceUrl,
+          valueSourceUrl: option.valueSourceUrl,
+          valueSourceKind: option.valueSourceKind,
+          checkedAt: option.checkedAt,
+          validFrom: option.validFrom,
+          validUntil: option.validUntil,
+        })),
+      };
+    }));
     const approvedRoutes = routeGroups.flat().filter((route) => route.status === "approved" && route.routeType !== "direct");
     const routeRules = await Promise.all(approvedRoutes.map(async (route): Promise<PrivateRouteRule | null> => {
       const [card, platform, merchant, source] = await Promise.all([
@@ -91,6 +126,6 @@ export const get = query({
       voucherSpendThisMonth: args.voucherSpendThisMonth,
       sbiCashbackEarnedThisCycle: args.sbiCashbackEarnedThisCycle,
       atlasTravelSpendThisMonth: args.atlasTravelSpendThisMonth,
-    });
+    }, redemptionProfiles);
   },
 });

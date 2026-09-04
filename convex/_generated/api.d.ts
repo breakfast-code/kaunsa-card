@@ -15,6 +15,7 @@ import type * as privateRuleAdmin from "../privateRuleAdmin.js";
 import type * as recommendationEngine from "../recommendationEngine.js";
 import type * as recommendationFeedback from "../recommendationFeedback.js";
 import type * as recommendations from "../recommendations.js";
+import type * as redemptionEngine from "../redemptionEngine.js";
 
 import type {
   ApiFromModules,
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   recommendationEngine: typeof recommendationEngine;
   recommendationFeedback: typeof recommendationFeedback;
   recommendations: typeof recommendations;
+  redemptionEngine: typeof redemptionEngine;
 }>;
 
 /**
