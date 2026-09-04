@@ -1,0 +1,13 @@
+.git
+.next
+.research
+.agents
+docs
+node_modules
+.env*
+AGENTS.md
+CLAUDE.md
+DATA_PIPELINE.md
+KNOWLEDGE_GRAPH.md
+TRUST_GATE.md
+TRUST_REPORT.md
