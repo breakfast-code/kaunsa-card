@@ -145,7 +145,10 @@ export function calculateDirectRecommendations(cards: PublicCard[], rules: Priva
     if (rule.outcome === "points" && rule.usageMetric === "monthly-category-spend" && rule.spendBlock) {
       const priorSpend = input.contextualSpendThisMonth;
       if (priorSpend === undefined || priorSpend === null) {
-        earned = Math.floor(input.amount / rule.spendBlock) * (rule.earnPerBlockWhenUsageUnknown ?? 0);
+        const possibleWithinTier = Math.min(input.amount, rule.spendTierCap ?? 0);
+        const possibleAboveTier = input.amount - possibleWithinTier;
+        earned = Math.floor(possibleWithinTier / rule.spendBlock) * (rule.earnPerBlockWithinTier ?? 0)
+          + Math.floor(possibleAboveTier / rule.spendBlock) * (rule.earnPerBlockAboveTier ?? 0);
         matchedRule = rule.matchedRuleUsageUnknown ?? matchedRule;
         caveat = rule.caveatUsageUnknown ?? caveat;
         usageConditional = true;
@@ -257,10 +260,14 @@ export function calculateRecommendations(
         kind: rule.routeType,
         title: rule.routeType === "voucher"
           ? `Buy a ${money(eligibleAmount)} Amazon Shopping Voucher first`
-          : `Book through ${rule.platformName}`,
+          : input.purchaseType === "hotel"
+            ? `Book through ${rule.platformName} if available`
+            : `Book through ${rule.platformName}`,
         action: rule.routeType === "voucher"
           ? `Open ${rule.platformName} and buy the voucher with ${card.name}.${split}`
-          : `Open ${rule.platformName}, choose ${input.purchaseType === "flight" ? "Flights" : "Hotels"}, and pay with ${card.name}.`,
+          : input.purchaseType === "hotel"
+            ? `Search ${rule.platformName} for this hotel. If it is not listed, use the best direct option below.`
+            : `Open ${rule.platformName}, choose Flights, and pay with ${card.name}.`,
         pointsLabel: `${earned.toLocaleString("en-IN")} ${rule.rewardCurrency}${remainderRecommendation ? " plus direct rewards on the remainder" : ""}`,
         minValue: grossMin,
         maxValue: grossMax,

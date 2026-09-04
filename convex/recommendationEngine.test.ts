@@ -131,17 +131,52 @@ describe("private portal and voucher routes", () => {
     expect(split.matchedRule).toBe("Split tier");
   });
 
-  it("uses a conservative tier and stays conditional when monthly usage is unknown", () => {
+  it("shows the higher capped rate with a disclaimer when monthly usage is unknown", () => {
     const tierRule = rule({
       outcome: "points", rate: undefined, spendBlock: 100, earnPerBlock: undefined,
       usageMetric: "monthly-category-spend", spendTierCap: 2000,
       earnPerBlockWithinTier: 5, earnPerBlockAboveTier: 2, earnPerBlockWhenUsageUnknown: 2,
+      rewardCurrency: "Test Points",
       matchedRuleUsageUnknown: "Conservative tier", caveatUsageUnknown: "Usage needed",
     });
     const [result] = calculateRecommendations([cards[0]], [tierRule], [], { ...input, amount: 1000 }, { atlasTravelSpendThisMonth: null });
-    expect(result.minValue).toBe(20);
+    expect(result.minValue).toBe(50);
+    expect(result.maxValue).toBe(50);
+    expect(result.pointsLabel).toBe("50 Test Points");
     expect(result.matchedRule).toBe("Conservative tier");
     expect(result.caveat).toBe("Usage needed");
     expect(result.conditional).toBe(true);
+  });
+
+  it("shows 2,500 ATLAS miles for a ₹50,000 direct hotel but ranks the higher SmartBuy value first", () => {
+    const atlas = { cardKey: "axis-atlas", name: "ATLAS Credit Card", issuer: "Axis Bank" };
+    const dcb = { cardKey: "hdfc-dcb-metal", name: "Diners Club Black Metal", issuer: "HDFC Bank" };
+    const atlasHotel = rule({
+      cardKey: atlas.cardKey, ruleKey: "atlas-direct-hotel", purchaseTypes: ["hotel"], outcome: "points",
+      rate: undefined, spendBlock: 100, earnPerBlock: undefined, usageMetric: "monthly-category-spend",
+      spendTierCap: 200000, earnPerBlockWithinTier: 5, earnPerBlockAboveTier: 2,
+      earnPerBlockWhenUsageUnknown: 2, rewardCurrency: "EDGE Miles",
+      matchedRuleUsageUnknown: "5 miles within the monthly cap", caveatUsageUnknown: "Assumes monthly cap remains",
+    });
+    const dcbHotel = route({
+      routeKey: "dcb-smartbuy-hotel", cardKey: dcb.cardKey, platformName: "HDFC SmartBuy", merchantKey: undefined,
+      routeType: "portal", purchaseType: "hotel", baseSpend: 150, baseEarn: 5, multiplier: 10,
+      rewardCurrency: "Reward Points", pointValueMin: 0.3, pointValueMax: 0.3,
+    });
+    const results = calculateRecommendations(
+      [atlas, dcb],
+      [atlasHotel, rule({ cardKey: dcb.cardKey, ruleKey: "dcb-hotel", purchaseTypes: ["hotel"], rate: 0.01 })],
+      [dcbHotel],
+      { amount: 50000, merchant: "Evolve Back", purchaseType: "hotel", paymentMode: "online", now: 10 },
+    );
+
+    expect(results[0].kind).toBe("portal");
+    expect(results[0].minValue).toBe(4995);
+    expect(results[0].title).toBe("Book through HDFC SmartBuy if available");
+    expect(results[0].action).toContain("If it is not listed, use the best direct option below.");
+    const atlasResult = results.find((result) => result.cardKey === atlas.cardKey)!;
+    expect(atlasResult.pointsLabel).toBe("2,500 EDGE Miles");
+    expect(atlasResult.minValue).toBe(2500);
+    expect(atlasResult.caveat).toBe("Assumes monthly cap remains");
   });
 });
