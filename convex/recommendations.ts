@@ -109,7 +109,7 @@ export const get = query({
         purchaseType: route.purchaseType, paymentMode: route.paymentMode, baseSpend: route.baseSpend,
         baseEarn: route.baseEarn, multiplier: route.multiplier, rewardCurrency: route.rewardCurrency,
         pointValueMin: route.pointValueMin, pointValueMax: route.pointValueMax, capValue: route.capValue,
-        capUnit: route.capUnit, evidence: route.evidence, checkedAt: route.checkedAt,
+        capUnit: route.capUnit, capAppliesTo: route.capAppliesTo, evidence: route.evidence, checkedAt: route.checkedAt,
         validFrom: route.validFrom, validUntil: route.validUntil,
         domesticFeePerPassengerLeg: route.domesticFeePerPassengerLeg,
         internationalFeePerPassengerLeg: route.internationalFeePerPassengerLeg,

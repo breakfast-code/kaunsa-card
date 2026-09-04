@@ -137,6 +137,7 @@ export default defineSchema({
     capValue: v.optional(v.number()),
     capPeriod: v.optional(v.union(v.literal("day"), v.literal("month"), v.literal("year"))),
     capUnit: v.optional(v.string()),
+    capAppliesTo: v.optional(v.union(v.literal("total"), v.literal("accelerated-only"))),
     domesticFeePerPassengerLeg: v.optional(v.number()),
     internationalFeePerPassengerLeg: v.optional(v.number()),
     effortSteps: v.number(),

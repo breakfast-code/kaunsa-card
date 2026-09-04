@@ -148,6 +148,27 @@ describe("private portal and voucher routes", () => {
     expect(expired.map((recommendation) => recommendation.kind)).toEqual(["direct"]);
   });
 
+  it("caps only HSBC TravelOne bonus points while base points continue", () => {
+    const travelOne = { cardKey: "hsbc-travelone", name: "TravelOne Credit Card", issuer: "HSBC" };
+    const hotelPortal = route({
+      cardKey: travelOne.cardKey, routeKey: "travelone-travel-with-points-hotel", merchantKey: undefined,
+      platformName: "HSBC Travel with Points", routeType: "portal", purchaseType: "hotel",
+      baseSpend: 100, baseEarn: 4, multiplier: 6, rewardCurrency: "Reward Points",
+      capValue: 18000, capUnit: "accelerated points", capAppliesTo: "accelerated-only",
+    });
+    const result = calculateRecommendations(
+      [travelOne],
+      [rule({ cardKey: travelOne.cardKey, ruleKey: "travelone-hotel", purchaseTypes: ["hotel"], outcome: "points", rate: undefined, spendBlock: 50, earnPerBlock: 1, rewardCurrency: "Reward Points" })],
+      [hotelPortal],
+      { ...input, amount: 500000, merchant: "Hotel", purchaseType: "hotel" },
+      {},
+      [profile("hsbc-travelone", "Reward Points")],
+    ).find((recommendation) => recommendation.kind === "portal")!;
+    expect(result.pointsLabel).toBe("38,000 Reward Points");
+    expect(result.maxValue).toBe(38000);
+    expect(result.caveat).toContain("capped at 38,000 points");
+  });
+
   it("discloses portal fees without subtracting them and keeps reviewed routes unconditional", () => {
     const flight = route({ routeKey: "flight", merchantKey: undefined, routeType: "portal", purchaseType: "flight", multiplier: 6, domesticFeePerPassengerLeg: 300 });
     const result = calculateRecommendations([cards[0]], [rule({ purchaseTypes: ["flight"] })], [flight], { ...input, amount: 1800, merchant: "Airline", purchaseType: "flight" }, {}, profiles)

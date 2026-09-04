@@ -88,6 +88,7 @@ export type PrivateRouteRule = {
   pointValueMax: number;
   capValue?: number;
   capUnit?: string;
+  capAppliesTo?: "total" | "accelerated-only";
   evidence: string;
   checkedAt: number;
   validFrom?: number;
@@ -283,9 +284,14 @@ export function calculateRecommendations(
       if (rule.routeType === "voucher" && eligibleAmount <= 0) return null;
 
       const remainder = input.amount - eligibleAmount;
-      const rawEarned = Math.floor(eligibleAmount / rule.baseSpend) * rule.baseEarn * rule.multiplier;
+      const earnedBlocks = Math.floor(eligibleAmount / rule.baseSpend);
+      const baseEarned = earnedBlocks * rule.baseEarn;
+      const rawEarned = baseEarned * rule.multiplier;
+      const rawAcceleratedEarned = Math.max(0, rawEarned - baseEarned);
       const earned = rule.capUnit === "accelerated points" && rule.capValue !== undefined
-        ? Math.min(rawEarned, rule.capValue)
+        ? rule.capAppliesTo === "accelerated-only"
+          ? baseEarned + Math.min(rawAcceleratedEarned, rule.capValue)
+          : Math.min(rawEarned, rule.capValue)
         : rawEarned;
       const remainderRecommendation = remainder > 0
         ? calculateDirectRecommendations([card], directRules, { ...contextualInput, amount: remainder }, redemptionProfiles)[0]
