@@ -29,20 +29,26 @@ export const ensureCard = internalMutation({
   args: {
     cardKey: v.string(), bankKey: v.string(), name: v.string(), shortName: v.string(),
     productUrl: v.string(), rewardCurrency: v.string(), checkedAt: v.number(),
+    coverage: v.union(v.literal("catalogued"), v.literal("direct-rules"), v.literal("routed")),
+    status: v.union(v.literal("active"), v.literal("unverified")),
   },
-  returns: v.object({ inserted: v.boolean() }),
+  returns: v.object({ inserted: v.boolean(), updated: v.boolean() }),
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("cardProducts").withIndex("by_cardKey", (q) => q.eq("cardKey", args.cardKey)).unique();
-    if (existing) return { inserted: false };
+    if (existing) {
+      const updated = existing.coverage !== args.coverage || existing.status !== args.status;
+      if (updated) await ctx.db.patch(existing._id, { coverage: args.coverage, status: args.status, checkedAt: args.checkedAt });
+      return { inserted: false, updated };
+    }
     const bank = await ctx.db.query("banks").withIndex("by_bankKey", (q) => q.eq("bankKey", args.bankKey)).unique();
     if (!bank) throw new Error(`Unknown bank ${args.bankKey}.`);
     if (!args.productUrl.startsWith("https://")) throw new Error("Invalid product URL.");
     await ctx.db.insert("cardProducts", {
       cardKey: args.cardKey, bankId: bank._id, name: args.name, shortName: args.shortName,
       productUrl: args.productUrl, rewardCurrency: args.rewardCurrency,
-      coverage: "direct-rules", status: "active", checkedAt: args.checkedAt,
+      coverage: args.coverage, status: args.status, checkedAt: args.checkedAt,
     });
-    return { inserted: true };
+    return { inserted: true, updated: false };
   },
 });
 

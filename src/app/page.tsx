@@ -367,7 +367,7 @@ function Landing({ onStart }: { onStart: () => void }) {
   return <main className="landing shell">
     <nav><Logo onClick={() => undefined} /><span className="coverage-note">Built for Indian cards</span></nav>
     <section className="hero">
-      <div className="hero-copy"><div className="eyebrow">FIND THE BEST WAY TO PAY</div><h1>Pay karne se pehle,<br /><em>poochho.</em></h1><p>Tell us what you want to buy. We check your cards and tell you the best way to pay.</p><button className="primary jumbo" onClick={onStart}>Show me how to pay <span>→</span></button><div className="coverage-line"><strong>{cards.length} cards supported</strong><span>More cards are coming.</span></div><div className="trust"><span>✓ No card details</span><span>✓ No bank login</span><span>✓ Sources shown</span></div></div>
+      <div className="hero-copy"><div className="eyebrow">FIND THE BEST WAY TO PAY</div><h1>Pay karne se pehle,<br /><em>poochho.</em></h1><p>Tell us what you want to buy. We check your cards and tell you the best way to pay.</p><button className="primary jumbo" onClick={onStart}>Show me how to pay <span>→</span></button><div className="coverage-line"><strong>{cards.length} cards in catalogue</strong><span>Verified coverage is shown with each answer.</span></div><div className="trust"><span>✓ No card details</span><span>✓ No bank login</span><span>✓ Sources shown</span></div></div>
       <LandingDemo onStart={onStart} />
     </section>
     <Footer />

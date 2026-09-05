@@ -3,6 +3,10 @@ import { query } from "./_generated/server";
 import { calculateRecommendations, type PrivateDirectRule, type PrivateRouteRule } from "./recommendationEngine";
 import type { RedemptionProfile } from "./redemptionEngine";
 
+// HDFC confirms the multipliers but its current portal-specific earning-cap terms
+// are unavailable. Keep these routes out of recommendations until that cap is reviewed.
+const unresolvedRouteKeys = new Set(["dcb-smartbuy-flight", "dcb-smartbuy-hotel"]);
+
 const purchaseType = v.union(
   v.literal("shopping"), v.literal("flight"), v.literal("hotel"), v.literal("dining"),
   v.literal("utility"), v.literal("insurance"), v.literal("fuel"), v.literal("rent"),
@@ -54,7 +58,7 @@ export const get = query({
     const merchant = args.merchant.trim();
     if (!merchant || merchant.length > 120) throw new Error("Invalid merchant.");
     const cardIds = [...new Set(args.cardIds)];
-    if (!cardIds.length || cardIds.length > 20 || cardIds.some((id) => !/^[a-z0-9-]{2,80}$/.test(id))) throw new Error("Select between 1 and 20 valid cards.");
+    if (!cardIds.length || cardIds.length > 21 || cardIds.some((id) => !/^[a-z0-9-]{2,80}$/.test(id))) throw new Error("Select between 1 and 21 valid cards.");
     if (!Number.isSafeInteger(args.now) || args.now < 0) throw new Error("Invalid request time.");
     if (args.voucherSpendThisMonth !== undefined && (!Number.isFinite(args.voucherSpendThisMonth) || args.voucherSpendThisMonth < 0)) throw new Error("Invalid voucher usage.");
     if (args.sbiCashbackEarnedThisCycle !== undefined && (!Number.isFinite(args.sbiCashbackEarnedThisCycle) || args.sbiCashbackEarnedThisCycle < 0)) throw new Error("Invalid SBI cashback usage.");
@@ -94,7 +98,9 @@ export const get = query({
         })),
       };
     }));
-    const approvedRoutes = routeGroups.flat().filter((route) => route.status === "approved" && route.routeType !== "direct");
+    const approvedRoutes = routeGroups.flat().filter((route) =>
+      route.status === "approved" && route.routeType !== "direct" && !unresolvedRouteKeys.has(route.routeKey),
+    );
     const routeRules = await Promise.all(approvedRoutes.map(async (route): Promise<PrivateRouteRule | null> => {
       const [card, platform, merchant, source] = await Promise.all([
         ctx.db.get(route.cardId),

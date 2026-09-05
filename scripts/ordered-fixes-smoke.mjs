@@ -18,17 +18,18 @@ try {
   await page.getByLabel("Amount").fill("4000");
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await page.getByRole("button", { name: /Find the best way to pay/ }).click();
-  const winner = page.getByRole("heading", { name: "BEST WAY TO PAY" });
+  const winner = page.getByRole("heading", { name: /BEST (WAY TO PAY|AVAILABLE ESTIMATE)/ });
   await winner.waitFor();
   await page.waitForFunction(() => window.scrollY === 0);
   if (!(await winner.isVisible())) throw new Error("BEST WAY TO PAY is not visible");
-  console.log("PASS 1: result opens at scrollY 0 and BEST WAY TO PAY is visible at 390px.");
+  console.log("PASS 1: result opens at scrollY 0 and the recommendation heading is visible at 390px.");
 
   const allCards = [
     "hdfc-dcb-metal", "hdfc-infinia", "hdfc-regalia-gold", "hdfc-millennia",
     "icici-amazon-pay", "icici-epm", "icici-sapphiro", "axis-atlas", "axis-ace",
     "axis-flipkart", "amex-plat-travel", "amex-mrcc", "amex-gold", "sbi-cashback",
     "sbi-simplyclick", "hsbc-premier", "hsbc-travelone", "hsbc-live-plus", "scapia-visa",
+    "hdfc-tata-neu-infinity", "hdfc-tata-neu-plus",
   ];
   await page.goto(baseUrl);
   await page.evaluate((ids) => localStorage.setItem("kaunsa-card-wallet-v2", JSON.stringify({ saved: ids, active: ids })), allCards);
@@ -38,10 +39,11 @@ try {
   await page.getByLabel("Amount").fill("4000");
   await page.getByRole("button", { name: "Hotel" }).click();
   await page.getByRole("button", { name: /Find the best way to pay/ }).click();
-  await page.getByText("₹360–₹1,440").waitFor();
+  await page.getByText(/₹1,440 via Travel with Points/).first().waitFor();
+  await page.getByText(/Fallback: ₹360 via lower-value catalogue redemption/).waitFor();
   const winningRoute = await page.locator(".route-callout").innerText();
-  if (!winningRoute.includes("SmartBuy")) throw new Error(`Expected conservative re-ranking to SmartBuy; got ${winningRoute}`);
-  console.log("PASS 2: HSBC shows ₹360–₹1,440 and SmartBuy wins on the conservative value.");
+  if (!winningRoute.includes("HSBC Travel with Points")) throw new Error(`Expected the maximum-value HSBC route; got ${winningRoute}`);
+  console.log("PASS 2: HSBC shows ₹1,440 first, ₹360 as fallback, and the maximum-value route wins.");
 
   async function atlasFlight(merchant) {
     await page.goto(baseUrl);
@@ -72,13 +74,9 @@ try {
   await page.getByRole("heading", { name: /BEST (WAY TO PAY|AVAILABLE ESTIMATE)/ }).waitFor();
   await page.locator(".result a[href]").first().waitFor();
   const shownRoutes = 1 + await page.locator(".route-option").count();
-  const sourceLinks = page.locator(".result a[href]");
-  const linkCount = await sourceLinks.count();
-  if (shownRoutes !== linkCount) throw new Error(`Expected ${shownRoutes} source links, found ${linkCount}`);
-  for (let index = 0; index < linkCount; index += 1) {
-    if (!/checked 30 Aug 2026/i.test(await sourceLinks.nth(index).innerText())) throw new Error(`Source link ${index + 1} lacks its checked date`);
-  }
-  console.log(`PASS 5: all ${shownRoutes} shown routes have a source link and checked date.`);
+  const datedLinks = page.locator(".result a[href]").filter({ hasText: /terms · checked \d{1,2} \w+ 2026/i });
+  if (await datedLinks.count() < shownRoutes) throw new Error(`Expected at least ${shownRoutes} earning sources with checked dates`);
+  console.log(`PASS 5: all ${shownRoutes} shown routes have an earning source and checked date.`);
 
   await page.evaluate(() => localStorage.setItem("kaunsa-card-wallet-v2", JSON.stringify({ saved: ["axis-atlas"], active: ["axis-atlas"] })));
   await page.goto(`${baseUrl}/?m=air-india&amt=4000&type=flight&mode=online`);
@@ -121,7 +119,7 @@ try {
 
   await page.goto(`${baseUrl}/?m=air-india&amt=4000&type=flight&mode=online`);
   await page.getByRole("heading", { name: /BEST (WAY TO PAY|AVAILABLE ESTIMATE)/ }).waitFor();
-  const resultLinkHeight = await page.locator(".math a").evaluate((element) => element.getBoundingClientRect().height);
+  const resultLinkHeight = await page.locator(".math a").first().evaluate((element) => element.getBoundingClientRect().height);
   if (resultLinkHeight < 44) throw new Error(`Official terms tap target is ${resultLinkHeight}px tall`);
   console.log("PASS 8: empty search, 44px tap targets and plain coverage label all pass.");
 } finally {

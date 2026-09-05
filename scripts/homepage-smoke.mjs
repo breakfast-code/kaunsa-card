@@ -8,7 +8,7 @@ async function check(viewport, screenshot) {
   const page = await browser.newPage({ viewport });
   page.setDefaultTimeout(10000);
   await page.goto(baseUrl);
-  await page.getByText("21 cards supported", { exact: true }).waitFor();
+  await page.getByText("21 cards in catalogue", { exact: true }).waitFor();
   await page.getByText("₹156 more value", { exact: true }).waitFor({ timeout: 12000 });
   await page.getByRole("button", { name: "Pause example" }).click();
   await page.getByRole("button", { name: "Play example" }).waitFor();
