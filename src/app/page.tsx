@@ -370,6 +370,11 @@ function Landing({ onStart }: { onStart: () => void }) {
       <div className="hero-copy"><div className="eyebrow">FIND THE BEST WAY TO PAY</div><h1>Pay karne se pehle,<br /><em>poochho.</em></h1><p>Tell us what you want to buy. We check your cards and tell you the best way to pay.</p><button className="primary jumbo" onClick={onStart}>Show me how to pay <span>→</span></button><div className="coverage-line"><strong>{cards.length} cards in catalogue</strong><span>Verified coverage is shown with each answer.</span></div><div className="trust"><span>✓ No card details</span><span>✓ No bank login</span><span>✓ Sources shown</span></div></div>
       <LandingDemo onStart={onStart} />
     </section>
+    <section className="seo-explainer" aria-labelledby="how-it-works">
+      <div><div className="eyebrow">NO MORE MENTAL MATHS</div><h2 id="how-it-works">Find the best card—and the best route</h2><p>Kaunsa Card? compares the Indian credit cards in your wallet for the purchase you are about to make. It checks paying directly, using a bank portal such as SmartBuy, and buying a voucher first.</p></div>
+      <div className="seo-steps"><article><strong>1</strong><h3>Pick your cards</h3><p>Select card names only. We never ask for card numbers or bank login details.</p></article><article><strong>2</strong><h3>Describe the purchase</h3><p>Enter the merchant, amount, category and whether you are paying online or in store.</p></article><article><strong>3</strong><h3>See the maths</h3><p>Get a ranked recommendation with reward calculations, assumptions and source links.</p></article></div>
+      <div className="seo-faq"><h2>Quick answers</h2><details><summary>Are the reward estimates guaranteed?</summary><p>No. Merchant classification, reward limits and changing bank terms can affect the final rewards. We show checked dates and sources so you can verify the recommendation.</p></details><details><summary>Is Kaunsa Card affiliated with a bank?</summary><p>No. It is an independent tool for comparing supported payment routes.</p></details></div>
+    </section>
     <Footer />
   </main>;
 }
