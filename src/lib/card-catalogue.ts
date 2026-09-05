@@ -28,6 +28,7 @@ export const cardCatalogue: PublicCard[] = [
   { id: "sbi-cashback", issuer: "SBI Card", name: "CASHBACK SBI Card", short: "CASHBACK", tone: "navy" },
   { id: "sbi-simplyclick", issuer: "SBI Card", name: "SimplyCLICK", short: "SimplyCLICK", tone: "navy" },
   { id: "hsbc-premier", issuer: "HSBC", name: "Premier Credit Card", short: "Premier", tone: "ruby" },
+  { id: "hsbc-travelone", issuer: "HSBC", name: "TravelOne Credit Card", short: "TravelOne", tone: "ruby" },
   { id: "hsbc-live-plus", issuer: "HSBC", name: "Live+ Credit Card", short: "Live+", tone: "ruby" },
   { id: "scapia-visa", issuer: "Federal Bank", name: "Scapia Federal Visa", short: "Scapia", tone: "sky" },
 ];

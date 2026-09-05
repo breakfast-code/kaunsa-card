@@ -34,22 +34,33 @@ const atlasProfile: RedemptionProfile = {
   cardKey: "axis-atlas", rewardCurrency: "EDGE Miles", version: 1, status: "approved",
   options: [
     {
-      optionKey: "partner-transfer", label: "eligible partner transfer", unitsPerReward: 2, rupeesPerUnit: 1,
-      valueType: "estimated", assumption: "Assumes an eligible 1:2 transfer partner and ₹1 value per partner point.",
-      rulesSourceUrl: "https://www.axisbank.com/retail/cards/credit-card/axis-bank-atlas-credit-card",
-      valueSourceUrl: "https://www.cardexpert.in/axis-bank-atlas-credit-card-review/", valueSourceKind: "expert", checkedAt: 1,
+      optionKey: "travel-edge", label: "Travel EDGE redemption", unitsPerReward: 1, rupeesPerUnit: 1,
+      valueType: "guaranteed", assumption: "Gross value; the ₹99 redemption fee is shown separately and not deducted.", rulesSourceUrl: "https://www.axisbank.com/retail/cards/credit-card/axis-bank-atlas-credit-card",
+      valueSourceUrl: "https://www.axisbank.com/retail/cards/credit-card/axis-bank-atlas-credit-card", valueSourceKind: "official", checkedAt: 1,
+    },
+  ],
+};
+
+const dcbProfile: RedemptionProfile = {
+  cardKey: "hdfc-dcb-metal", rewardCurrency: "Reward Points", version: 1, status: "approved",
+  options: [
+    {
+      optionKey: "smartbuy-travel", label: "eligible SmartBuy flight or hotel", unitsPerReward: 1, rupeesPerUnit: 1,
+      valueType: "estimated", assumption: "Requires an eligible SmartBuy travel booking; points can cover up to 70% of it.",
+      rulesSourceUrl: "https://www.hdfc.bank.in/credit-cards/diners-club-black-metal-edition-credit-card",
+      valueSourceUrl: "https://www.hdfc.bank.in/credit-cards/diners-club-black-metal-edition-credit-card", valueSourceKind: "official", checkedAt: 1,
     },
     {
-      optionKey: "travel-edge", label: "Travel EDGE redemption", unitsPerReward: 1, rupeesPerUnit: 1,
-      valueType: "guaranteed", rulesSourceUrl: "https://www.axisbank.com/retail/cards/credit-card/axis-bank-atlas-credit-card",
-      valueSourceUrl: "https://www.axisbank.com/retail/cards/credit-card/axis-bank-atlas-credit-card", valueSourceKind: "official", checkedAt: 1,
+      optionKey: "cashback", label: "cashback redemption", unitsPerReward: 1, rupeesPerUnit: 0.3,
+      valueType: "guaranteed", rulesSourceUrl: "https://www.hdfc.bank.in/credit-cards/diners-club-black-metal-edition-credit-card",
+      valueSourceUrl: "https://www.hdfc.bank.in/credit-cards/diners-club-black-metal-edition-credit-card", valueSourceKind: "official", checkedAt: 1,
     },
   ],
 };
 
 const profiles = [
   profile("alpha", "points"), profile("alpha", "cashback"), profile("beta", "points"), profile("alpha", "Test Points"),
-  atlasProfile, profile("hdfc-dcb-metal", "Reward Points", 0.3),
+  atlasProfile, dcbProfile,
 ];
 
 describe("private recommendation engine", () => {
@@ -212,7 +223,7 @@ describe("private portal and voucher routes", () => {
     expect(jewellery.maxValue).toBe(0);
   });
 
-  it("discloses portal fees without subtracting them and keeps reviewed routes unconditional", () => {
+  it("discloses portal fees without subtracting them and keeps reviewed flight routes unconditional", () => {
     const flight = route({ routeKey: "flight", merchantKey: undefined, routeType: "portal", purchaseType: "flight", multiplier: 6, domesticFeePerPassengerLeg: 300 });
     const result = calculateRecommendations([cards[0]], [rule({ purchaseTypes: ["flight"] })], [flight], { ...input, amount: 1800, merchant: "Airline", purchaseType: "flight" }, {}, profiles)
       .find((recommendation) => recommendation.kind === "portal")!;
@@ -266,7 +277,7 @@ describe("private portal and voucher routes", () => {
     expect(result.conditional).toBe(true);
   });
 
-  it("ranks the highest supported redemption value and keeps the cash-like fallback", () => {
+  it("disables disputed ATLAS transfers and ranks DCB using supported SmartBuy travel value", () => {
     const atlas = { cardKey: "axis-atlas", name: "ATLAS Credit Card", issuer: "Axis Bank" };
     const dcb = { cardKey: "hdfc-dcb-metal", name: "Diners Club Black Metal", issuer: "HDFC Bank" };
     const atlasHotel = rule({
@@ -289,16 +300,19 @@ describe("private portal and voucher routes", () => {
       {}, profiles,
     );
 
-    expect(results[0].cardKey).toBe(atlas.cardKey);
-    expect(results[0].kind).toBe("direct");
-    expect(results[0].maxValue).toBe(5000);
-    expect(results[0].fallbackValue).toBe(2500);
-    expect(results[0].bestValueCalculation).toContain("2,500 × 2 eligible partner transfer × ₹1 each = ₹5,000");
+    expect(results[0].cardKey).toBe(dcb.cardKey);
+    expect(results[0].kind).toBe("portal");
+    expect(results[0].maxValue).toBe(16650);
+    expect(results[0].minValue).toBe(4995);
+    expect(results[0].conditional).toBe(true);
+    expect(results[0].fallbackValueCalculation).toContain("₹0.3 each = ₹4,995");
     const atlasResult = results.find((result) => result.cardKey === atlas.cardKey)!;
     expect(atlasResult.pointsLabel).toBe("2,500 EDGE Miles");
     expect(atlasResult.minValue).toBe(2500);
-    expect(atlasResult.maxValue).toBe(5000);
+    expect(atlasResult.maxValue).toBe(2500);
+    expect(atlasResult.bestValueLabel).toBe("Travel EDGE redemption");
+    expect(atlasResult.bestValueCalculation).toContain("2,500 × 1 Travel EDGE redemption × ₹1 each = ₹2,500");
     expect(atlasResult.caveat).toContain("Assumes monthly cap remains");
-    expect(atlasResult.caveat).toContain("eligible 1:2 transfer partner");
+    expect(atlasResult.caveat).toContain("₹99 redemption fee");
   });
 });

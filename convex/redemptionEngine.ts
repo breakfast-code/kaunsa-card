@@ -52,6 +52,7 @@ export function valueRewards(earnedAmount: number, profile: RedemptionProfile, n
   const best = options[0];
   const fallback = best.valueType === "estimated"
     ? options.find((option) => option.valueType === "guaranteed" && option.optionKey !== best.optionKey)
+      ?? [...options].reverse().find((option) => option.optionKey !== best.optionKey)
     : undefined;
   return { earnedAmount, earnedCurrency: profile.rewardCurrency, best, fallback, options };
 }

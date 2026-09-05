@@ -122,6 +122,7 @@ const matches = (rule: PrivateDirectRule, input: RecommendationInput) => {
 };
 
 const money = (value: number) => `₹${Math.round(value).toLocaleString("en-IN")}`;
+const unitMoney = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 const profileFor = (profiles: RedemptionProfile[], cardKey: string, rewardCurrency: string) => profiles
   .filter((profile) => profile.cardKey === cardKey && profile.rewardCurrency === rewardCurrency && profile.status === "approved")
@@ -130,7 +131,7 @@ const profileFor = (profiles: RedemptionProfile[], cardKey: string, rewardCurren
 const valuationFields = (earned: number, profile: RedemptionProfile, now: number) => {
   const valuation = valueRewards(earned, profile, now);
   const describe = (option: typeof valuation.best) =>
-    `${earned.toLocaleString("en-IN")} × ${option.unitsPerReward.toLocaleString("en-IN")} ${option.label} × ${money(option.rupeesPerUnit)} each = ${money(option.rupeeValue)}`;
+    `${earned.toLocaleString("en-IN")} × ${option.unitsPerReward.toLocaleString("en-IN")} ${option.label} × ${unitMoney(option.rupeesPerUnit)} each = ${money(option.rupeeValue)}`;
   return {
     minValue: valuation.fallback?.rupeeValue ?? valuation.best.rupeeValue,
     maxValue: valuation.best.rupeeValue,
@@ -344,7 +345,7 @@ export function calculateRecommendations(
         caveat: `${rule.evidence}${feeCaveat}${allowanceCaveat}${pointsCapCaveat}${valuation.valuationAssumption ? ` ${valuation.valuationAssumption}` : ""}`,
         sourceUrl: rule.sourceUrl,
         checkedAt: rule.checkedAt,
-        conditional: valuation.valuationConditional,
+        conditional: valuation.valuationConditional || input.purchaseType === "hotel",
       };
     })
     .filter((route): route is RoutedRecommendation => route !== null));

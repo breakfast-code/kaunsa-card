@@ -28,7 +28,7 @@ try {
     "hdfc-dcb-metal", "hdfc-infinia", "hdfc-regalia-gold", "hdfc-millennia",
     "icici-amazon-pay", "icici-epm", "icici-sapphiro", "axis-atlas", "axis-ace",
     "axis-flipkart", "amex-plat-travel", "amex-mrcc", "amex-gold", "sbi-cashback",
-    "sbi-simplyclick", "hsbc-premier", "hsbc-live-plus", "scapia-visa",
+    "sbi-simplyclick", "hsbc-premier", "hsbc-travelone", "hsbc-live-plus", "scapia-visa",
   ];
   await page.goto(baseUrl);
   await page.evaluate((ids) => localStorage.setItem("kaunsa-card-wallet-v2", JSON.stringify({ saved: ids, active: ids })), allCards);

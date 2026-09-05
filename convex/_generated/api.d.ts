@@ -11,6 +11,7 @@
 import type * as accounts from "../accounts.js";
 import type * as admin from "../admin.js";
 import type * as cardRequests from "../cardRequests.js";
+import type * as privateRedemptionAdmin from "../privateRedemptionAdmin.js";
 import type * as privateRuleAdmin from "../privateRuleAdmin.js";
 import type * as recommendationEngine from "../recommendationEngine.js";
 import type * as recommendationFeedback from "../recommendationFeedback.js";
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   accounts: typeof accounts;
   admin: typeof admin;
   cardRequests: typeof cardRequests;
+  privateRedemptionAdmin: typeof privateRedemptionAdmin;
   privateRuleAdmin: typeof privateRuleAdmin;
   recommendationEngine: typeof recommendationEngine;
   recommendationFeedback: typeof recommendationFeedback;
