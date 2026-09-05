@@ -312,7 +312,9 @@ export function calculateRecommendations(
         ? ` The remaining monthly voucher allowance of ${money(availableVoucherCap)} was applied.`
         : "";
       const pointsCapCaveat = earned < rawEarned
-        ? ` Rewards were capped at ${earned.toLocaleString("en-IN")} points.`
+        ? rule.capAppliesTo === "accelerated-only"
+          ? ` Assumes the ${rule.capValue!.toLocaleString("en-IN")}-point accelerated-rewards allowance is unused; base points continue above it.`
+          : ` Rewards were capped at ${earned.toLocaleString("en-IN")} points.`
         : "";
 
       return {

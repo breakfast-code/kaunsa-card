@@ -177,7 +177,34 @@ describe("private portal and voucher routes", () => {
     ).find((recommendation) => recommendation.kind === "portal")!;
     expect(result.pointsLabel).toBe("38,000 Reward Points");
     expect(result.maxValue).toBe(38000);
-    expect(result.caveat).toContain("capped at 38,000 points");
+    expect(result.caveat).toContain("18,000-point accelerated-rewards allowance is unused");
+    expect(result.caveat).toContain("base points continue above it");
+  });
+
+  it("caps DCB Metal SmartBuy accelerated points while base points continue", () => {
+    const dcb = { cardKey: "hdfc-dcb-metal", name: "Diners Club Black Metal", issuer: "HDFC Bank" };
+    const hotelPortal = route({
+      cardKey: dcb.cardKey, routeKey: "dcb-smartbuy-hotel", merchantKey: undefined,
+      platformName: "HDFC SmartBuy", routeType: "portal", purchaseType: "hotel",
+      baseSpend: 150, baseEarn: 5, multiplier: 10, rewardCurrency: "Reward Points",
+      capValue: 10000, capUnit: "accelerated points", capAppliesTo: "accelerated-only",
+    });
+    const calculate = (amount: number) => calculateRecommendations(
+      [dcb],
+      [rule({ cardKey: dcb.cardKey, ruleKey: "dcb-hotel", purchaseTypes: ["hotel"], outcome: "points", rate: undefined, spendBlock: 150, earnPerBlock: 5, rewardCurrency: "Reward Points" })],
+      [hotelPortal],
+      { ...input, amount, merchant: "Hotel", purchaseType: "hotel" },
+      {},
+      [profile("hdfc-dcb-metal", "Reward Points")],
+    ).find((recommendation) => recommendation.kind === "portal")!;
+
+    expect(calculate(4000).pointsLabel).toBe("1,300 Reward Points");
+    expect(calculate(18000).pointsLabel).toBe("6,000 Reward Points");
+    expect(calculate(33300).pointsLabel).toBe("11,100 Reward Points");
+    expect(calculate(33450).pointsLabel).toBe("11,115 Reward Points");
+    const capped = calculate(50000);
+    expect(capped.pointsLabel).toBe("11,665 Reward Points");
+    expect(capped.caveat).toContain("10,000-point accelerated-rewards allowance is unused");
   });
 
   it("keeps HSBC TravelOne portal value disabled without an approved redemption profile", () => {

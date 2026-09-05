@@ -3,10 +3,6 @@ import { query } from "./_generated/server";
 import { calculateRecommendations, type PrivateDirectRule, type PrivateRouteRule } from "./recommendationEngine";
 import type { RedemptionProfile } from "./redemptionEngine";
 
-// HDFC confirms the multipliers but its current portal-specific earning-cap terms
-// are unavailable. Keep these routes out of recommendations until that cap is reviewed.
-const unresolvedRouteKeys = new Set(["dcb-smartbuy-flight", "dcb-smartbuy-hotel"]);
-
 const purchaseType = v.union(
   v.literal("shopping"), v.literal("flight"), v.literal("hotel"), v.literal("dining"),
   v.literal("utility"), v.literal("insurance"), v.literal("fuel"), v.literal("rent"),
@@ -98,9 +94,7 @@ export const get = query({
         })),
       };
     }));
-    const approvedRoutes = routeGroups.flat().filter((route) =>
-      route.status === "approved" && route.routeType !== "direct" && !unresolvedRouteKeys.has(route.routeKey),
-    );
+    const approvedRoutes = routeGroups.flat().filter((route) => route.status === "approved" && route.routeType !== "direct");
     const routeRules = await Promise.all(approvedRoutes.map(async (route): Promise<PrivateRouteRule | null> => {
       const [card, platform, merchant, source] = await Promise.all([
         ctx.db.get(route.cardId),
